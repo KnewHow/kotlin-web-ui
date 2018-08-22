@@ -1,0 +1,93 @@
+group 'dive-into-kotlin'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '1.1.51'
+    ext.web_dir = 'web'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin2js'
+
+sourceSets {
+    main.kotlin.srcDirs += "src/main/kotlin"
+    test.kotlin.srcDirs += "src/test/kotlin"
+}
+
+compileKotlin2Js {
+    kotlinOptions.outputFile = "${projectDir}/web/lib/kotlin-js-example_main.js"
+    kotlinOptions.moduleKind = "amd"
+    kotlinOptions.sourceMap = true
+}
+
+compileTestKotlin2Js {
+    kotlinOptions.moduleKind = "amd"
+    kotlinOptions.sourceMap = true
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "http://dl.bintray.com/kotlin/kotlin-eap-1.1"
+    }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-js:$kotlin_version"
+    testCompile "org.jetbrains.kotlin:kotlin-test-js:$kotlin_version"
+}
+
+clean.doFirst() {
+    delete("${web_dir}")
+}
+
+build.doLast() {
+    configurations.compile.each { File file ->
+        copy {
+            includeEmptyDirs = false
+
+            from zipTree(file.absolutePath)
+            into "${projectDir}/${web_dir}/lib"
+            include { fileTreeElement ->
+                def path = fileTreeElement.path
+                path.endsWith(".js") && (path.startsWith("META-INF/resources/") || !path.startsWith("META-INF/"))
+            }
+        }
+    }
+
+    copy {
+        File artifact = new File("build/libs/${project.name}-${project.version}.jar")
+        includeEmptyDirs = false
+
+        from zipTree(artifact)
+        into "${web_dir}"
+        include { fileTreeElement ->
+            def path = fileTreeElement.path
+            !(path.startsWith("META-INF/") || path.startsWith("${project.name}"))
+        }
+    }
+
+    copy {
+        includeEmptyDirs = false
+        from new File("build/classes/main")
+        into "${web_dir}/lib"
+    }
+
+    copy {
+        includeEmptyDirs = false
+        from new File("build/classes/test")
+        into "${web_dir}/lib"
+    }
+
+    copy {
+        includeEmptyDirs = false
+        from new File("build/resources/test")
+        into "${web_dir}"
+    }
+
+}
